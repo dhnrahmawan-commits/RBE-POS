@@ -1,389 +1,343 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 void main() {
   runApp(const RbePosApp());
 }
 
-class RbePosApp extends StatelessWidget {
+class RbePosApp extends StatefulWidget {
   const RbePosApp({super.key});
+
+  @override
+  State<RbePosApp> createState() => _RbePosAppState();
+}
+
+class _RbePosAppState extends State<RbePosApp> {
+  // State untuk mengatur mode terang / gelap
+  bool _isDarkMode = false;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'RBE POS',
+      title: 'RBE-POS',
+      debugShowCheckedModeBanner: false,
+      themeMode: _isDarkMode ? ThemeMode.dark : ThemeMode.light,
       theme: ThemeData(
         primarySwatch: Colors.blue,
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: Colors.grey.shade100,
+      ),
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        primarySwatch: Colors.blue,
         scaffoldBackgroundColor: const Color(0xFF0F172A),
-        fontFamily: 'Inter',
       ),
-      home: const RoleSelectPage(),
-      debugShowCheckedModeBanner: false,
-    );
-  }
-}
-
-// 1. HALAMAN PILIH MODE LOGIN
-class RoleSelectPage extends StatelessWidget {
-  const RoleSelectPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 5))
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: Image.network(
-                    'https://i.ibb.co.com/6X2m29Q/1000014612.jpg',
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.point_of_sale, size: 40, color: Colors.blue),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text("RBE POS", style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white)),
-              const Text("Pilih Mode Masuk Aplikasi", style: TextStyle(fontSize: 13, color: Colors.blueAccent)),
-              const SizedBox(height: 40),
-              ElevatedButton.icon(
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginPage(role: 'kasir'))),
-                icon: const Icon(Icons.person, color: Colors.blue),
-                label: const Text("Login Kasir", style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginPage(role: 'admin'))),
-                icon: const Icon(Icons.admin_panel_settings, color: Colors.white),
-                label: const Text("Login Admin", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue.shade800,
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-              ),
-              const Spacer(),
-              const Text(
-                "Powered by PT. RELIABLE BASED ENTERPRISE",
-                style: TextStyle(fontSize: 11, color: Colors.white54, fontWeight: FontWeight.w500),
-              ),
-            ],
-          ),
-        ),
+      home: KasirHomePage(
+        isDarkMode: _isDarkMode,
+        onThemeChanged: (val) {
+          setState(() {
+            _isDarkMode = val;
+          });
+        },
       ),
     );
   }
 }
 
-// 2. HALAMAN INPUT PIN
-class LoginPage extends StatefulWidget {
-  final String role;
-  const LoginPage({super.key, required this.role});
+// Model Data Transaksi Offline-First
+class TransactionItem {
+  final String productName;
+  final int price;
+  int qty;
 
-  @override
-  State<LoginPage> createState() => _LoginPageState();
+  TransactionItem({required this.productName, required this.price, required this.qty});
 }
 
-class _LoginPageState extends State<LoginPage> {
-  final TextEditingController _pinController = TextEditingController();
-
-  void _validatePin() {
-    String pin = _pinController.text;
-    if (widget.role == 'kasir' && pin == '123456') {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const KasirHomePage()));
-    } else if (widget.role == 'admin' && pin == '999999') {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const AdminReportPage()));
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("PIN Salah! Coba lagi.")));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    bool isAdmin = widget.role == 'admin';
-    return Scaffold(
-      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, iconTheme: const IconThemeData(color: Colors.white)),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.lock_outline, size: 70, color: Colors.white),
-            const SizedBox(height: 16),
-            Text(isAdmin ? "Login Admin" : "Login Kasir", style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-            const SizedBox(height: 30),
-            TextField(
-              controller: _pinController,
-              obscureText: true,
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-              style: const TextStyle(color: Colors.white, fontSize: 20, letterSpacing: 8),
-              textAlign: TextAlign.center,
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.white.withOpacity(0.1),
-                hintText: "••••••",
-                hintStyle: const TextStyle(color: Colors.white38),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                counterText: "",
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _validatePin,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.blue.shade900,
-                minimumSize: const Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-              child: const Text("Masuk", style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// 3. HALAMAN KASIR (POINT OF SALE)
 class KasirHomePage extends StatefulWidget {
-  const KasirHomePage({super.key});
+  final bool isDarkMode;
+  final ValueChanged<bool> onThemeChanged;
+
+  const KasirHomePage({
+    super.key,
+    required this.isDarkMode,
+    required this.onThemeChanged,
+  });
 
   @override
   State<KasirHomePage> createState() => _KasirHomePageState();
 }
 
 class _KasirHomePageState extends State<KasirHomePage> {
+  // Daftar Produk Toko
   final List<Map<String, dynamic>> products = [
-    {"name": "Nasi Goreng Kampung", "price": 21600, "hpp": 15000},
-    {"name": "Nasi Goreng Spesial", "price": 25000, "hpp": 18000},
-    {"name": "Es Teh Manis", "price": 5000, "hpp": 3000},
+    {'name': 'Nasi Goreng Kampung', 'price': 21600, 'stock': 50},
+    {'name': 'Nasi Goreng Spesial', 'price': 25000, 'stock': 50},
+    {'name': 'Es Teh Manis', 'price': 5000, 'stock': 50},
+    {'name': 'Kopi Susu', 'price': 15000, 'stock': 30},
   ];
 
-  final List<Map<String, dynamic>> cart = [];
+  // Keranjang Belanja Kasir (Penyimpanan Lokal Sementara)
+  final List<TransactionItem> cart = [];
+  
+  // Riwayat Transaksi Offline (Disimpan di HP sebelum sinkron ke Admin)
+  final List<Map<String, dynamic>> localOfflineTransactions = [];
+
+  double get totalBelanja {
+    return cart.fold(0, (sum, item) => sum + (item.price * item.qty).toDouble());
+  }
 
   void _addToCart(Map<String, dynamic> product) {
     setState(() {
-      cart.add({"name": product["name"], "price": product["price"], "hpp": product["hpp"], "qty": 1, "notes": ""});
+      int index = cart.indexWhere((item) => item.productName == product['name']);
+      if (index >= 0) {
+        cart[index].qty++;
+      } else {
+        cart.add(TransactionItem(
+          productName: product['name'],
+          price: product['price'],
+          qty: 1,
+        ));
+      }
     });
   }
 
-  Future<void> _checkout() async {
+  // Proses Pembayaran (Offline-First: Simpan lokal dulu, siap disinkronkan ke admin)
+  void _processPayment() {
     if (cart.isEmpty) return;
-    int total = cart.fold(0, (sum, item) => sum + (item["price"] as int) * (item["qty"] as int));
-    int totalHpp = cart.fold(0, (sum, item) => sum + (item["hpp"] as int) * (item["qty"] as int));
 
-    Map<String, dynamic> txData = {
-      "id": "TRX-${DateTime.now().millisecondsSinceEpoch}",
-      "time": DateTime.now().toIso8601String(),
-      "kasir": "Budi Santoso",
-      "items": cart,
-      "total": total,
-      "totalHpp": totalHpp,
-      "profit": total - totalHpp,
-      "method": "Cash",
-    };
-
-    try {
-      // Alamat URL backend (Gunakan 10.0.2.2 jika di Emulator Android)
-      final response = await http.post(
-        Uri.parse('http://localhost:3000/api/transactions'),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(txData),
-      );
-
-      if (response.statusCode == 201) {
-        setState(() => cart.clear());
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text("Berhasil!"),
-            content: const Text("Transaksi berhasil diproses & disinkronkan ke database server."),
-            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("OK"))],
-          ),
-        );
+    setState(() {
+      for (var item in cart) {
+        localOfflineTransactions.add({
+          'product': item.productName,
+          'qty': item.qty,
+          'total': item.price * item.qty,
+          'time': DateTime.now().toString(),
+          'synced': false, // Status belum sinkron ke admin pusat
+        });
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Gagal terhubung ke server: $e")));
-    }
-  }
+      cart.clear();
+    });
 
-  @override
-  Widget build(BuildContext context) {
-    int totalCart = cart.fold(0, (sum, item) => sum + (item["price"] as int) * (item["qty"] as int));
-    return Scaffold(
-      appBar: AppBar(title: const Text("RBE POS - Kasir"), backgroundColor: Colors.blue.shade900),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: BoxDecoration(color: Colors.blue.shade900),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text("RBE POS Utama", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                  Text("Kasir: Budi Santoso", style: TextStyle(color: Colors.blueAccent, fontSize: 12)),
-                ],
-              ),
-            ),
-            const Spacer(),
-            const Divider(),
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  Text("Licensed to", style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
-                  Text("PT. RELIABLE BASED ENTERPRISE", style: TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.bold)),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              itemCount: products.length,
-              itemBuilder: (context, index) {
-                final p = products[index];
-                return Card(
-                  color: Colors.white.withOpacity(0.05),
-                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  child: ListTile(
-                    title: Text(p["name"], style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                    subtitle: Text("Rp ${p["price"]} | Stok: 50", style: const TextStyle(color: Colors.white70)),
-                    trailing: ElevatedButton(
-                      onPressed: () => _addToCart(p),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade900),
-                      child: const Text("Tambah", style: TextStyle(color: Colors.white)),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: Colors.white,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text("Total: Rp $totalCart", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                ElevatedButton(
-                  onPressed: cart.isEmpty ? null : _checkout,
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                  child: const Text("Bayar / Charge", style: TextStyle(color: Colors.white)),
-                ),
-              ],
-            ),
-          )
-        ],
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Transaksi Berhasil Disimpan (Offline Mode)!'),
+        backgroundColor: Colors.green,
       ),
     );
   }
-}
 
-// 4. HALAMAN LAPORAN OMSET ADMIN (TERSINKRON DATABASE)
-class AdminReportPage extends StatefulWidget {
-  const AdminReportPage({super.key});
+  // Fungsi Dialog PIN Admin
+  void _showAdminPinDialog(BuildContext context) {
+    TextEditingController pinController = TextEditingController();
+    const String correctAdminPin = "123456"; // PIN Admin Utama
 
-  @override
-  State<AdminReportPage> createState() => _AdminReportPageState();
-}
-
-class _AdminReportPageState extends State<AdminReportPage> {
-  List transactions = [];
-  bool isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchTransactions();
-  }
-
-  Future<void> _fetchTransactions() async {
-    try {
-      final response = await http.get(Uri.parse('http://localhost:3000/api/transactions'));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        setState(() {
-          transactions = data["data"];
-          isLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() => isLoading = false);
-    }
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('PIN Admin Toko'),
+          content: TextField(
+            controller: pinController,
+            keyboardType: TextInputType.number,
+            obscureText: true,
+            maxLength: 6,
+            decoration: const InputDecoration(
+              hintText: 'Masukkan 6 digit PIN',
+              counterText: '',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (pinController.text == correctAdminPin) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('PIN Benar! Membuka Menu Admin...'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } else {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('PIN Salah! Akses Ditolak.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Masuk'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Laporan Omset Per Kasir (Admin)"),
-        backgroundColor: Colors.blue.shade900,
-        actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _fetchTransactions)
-        ],
+        title: const Text('RBE POS - Kasir'),
+        elevation: 0,
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : transactions.isEmpty
-              ? const Center(child: Text("Belum ada data transaksi dari kasir.", style: TextStyle(color: Colors.white70)))
-              : ListView.builder(
+      // --- MENU GARIS TIGA (DRAWER) TANPA BUG ABU-ABU ---
+      drawer: Drawer(
+        backgroundColor: Theme.of(context).cardColor,
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            UserAccountsDrawerHeader(
+              accountName: const Text("RBE POS Utama"),
+              accountEmail: const Text("Kasir: Budi Santoso (Cabang Pusat)"),
+              currentAccountPicture: const CircleAvatar(
+                backgroundColor: Colors.white,
+                child: Icon(Icons.store, color: Colors.blue, size: 32),
+              ),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade800,
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.point_of_sale),
+              title: const Text('Point of Sale'),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              leading: const Icon(Icons.admin_panel_settings),
+              title: const Text('Menu Admin / PIN'),
+              onTap: () {
+                Navigator.pop(context);
+                _showAdminPinDialog(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.bar_chart),
+              title: const Text('Laporan Omset Lokal'),
+              onTap: () {
+                Navigator.pop(context);
+                // Tampilkan jumlah transaksi offline tersimpan
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Laporan Transaksi Lokal'),
+                    content: Text(localOfflineTransactions.isEmpty
+                        ? 'Belum ada data transaksi dari kasir.'
+                        : 'Total ${localOfflineTransactions.length} transaksi tersimpan secara offline.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Tutup'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            const Divider(),
+            // SWITCH MODE TERANG / GELAP
+            SwitchListTile(
+              secondary: Icon(
+                widget.isDarkMode ? Icons.dark_mode : Icons.light_mode,
+              ),
+              title: const Text('Mode Gelap'),
+              value: widget.isDarkMode,
+              onChanged: widget.onThemeChanged,
+            ),
+          ],
+        ),
+      ),
+      // --- TAMPILAN UTAMA KASIR ---
+      body: Row(
+        children: [
+          // Bagian Kiri: Daftar Produk
+          Expanded(
+            flex: 3,
+            child: ListView.builder(
+              padding: const EdgeInsets.all(8.0),
+              itemCount: products.length,
+              itemBuilder: (context, index) {
+                final product = products[index];
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 8.0),
+                  child: ListTile(
+                    title: Text(
+                      product['name'],
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text('Rp ${product['price']} | Stok: ${product['stock']}'),
+                    trailing: ElevatedButton(
+                      onPressed: () => _addToCart(product),
+                      child: const Text('Tambah'),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const VerticalDivider(width: 1),
+          // Bagian Kanan: Keranjang & Pembayaran
+          Expanded(
+            flex: 2,
+            child: Column(
+              children: [
+                Container(
                   padding: const EdgeInsets.all(12),
-                  itemCount: transactions.length,
-                  itemBuilder: (context, index) {
-                    final tx = transactions[index];
-                    return Card(
-                      color: Colors.white,
-                      margin: const EdgeInsets.only(bottom: 10),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(tx["id"], style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
-                                Text("Kasir: ${tx["kasir"]}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                            const Divider(),
-                            Text("Total Omset: Rp ${tx["total"]}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                            Text("Keuntungan (Profit): Rp ${tx["profit"]}", style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 4),
-                            Text("Waktu: ${tx["time"]}", style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                          ],
+                  color: Colors.blue.withOpacity(0.1),
+                  child: const Text(
+                    'Keranjang Belanja',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: cart.length,
+                    itemBuilder: (context, index) {
+                      final item = cart[index];
+                      return ListTile(
+                        title: Text(item.productName),
+                        subtitle: Text('Rp ${item.price} x ${item.qty}'),
+                        trailing: Text('Rp ${item.price * item.qty}'),
+                      );
+                    },
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Total:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          Text('Rp $totalBelanja', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          onPressed: cart.isEmpty ? null : _processPayment,
+                          child: const Text('Bayar / Charge', style: TextStyle(fontSize: 16)),
                         ),
                       ),
-                    );
-                  },
+                    ],
+                  ),
                 ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
