@@ -390,8 +390,11 @@ class _MainDashboardState extends State<MainDashboard> {
   String searchQuery = "";
 
   double get cartTotal =>
-      cart.fold(0, (sum, item) => sum + (item['price'] * item['qty']));
-  int get cartCount => cart.fold(0, (sum, item) => sum + item['qty']);
+      cart.fold(0, (sum, item) => sum + (item['price'] * (item['qty'] as num)));
+  
+  // Diperbaiki agar aman dari error tipe data num/int
+  int get cartCount =>
+      cart.fold<int>(0, (sum, item) => sum + (item['qty'] as num).toInt());
 
   void addToCart(Map<String, dynamic> p) {
     setState(() {
@@ -413,7 +416,7 @@ class _MainDashboardState extends State<MainDashboard> {
     double total = cartTotal;
     double totalHpp = cart.fold(
       0,
-      (sum, item) => sum + ((item['hpp'] ?? 0) * item['qty']),
+      (sum, item) => sum + ((item['hpp'] ?? 0) * (item['qty'] as num)),
     );
 
     String trxId = "TRX-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}";
