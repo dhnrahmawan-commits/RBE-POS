@@ -22,7 +22,7 @@ class RbePosApp extends StatelessWidget {
   }
 }
 
-// Global Storage untuk simulasi database offline-first & multi-device
+// Global Database Storage
 class AppDatabase {
   static List<Map<String, dynamic>> transactions = [];
   static List<Map<String, dynamic>> products = [
@@ -43,6 +43,15 @@ class AppDatabase {
       'price': 5000,
     },
   ];
+  static List<Map<String, dynamic>> shiftHistory = [
+    {
+      'date': '2026-10-23',
+      'kasir': 'Budi Santoso',
+      'shift': 'Pagi (08:00 - 16:00)',
+      'omset': 21600,
+    }
+  ];
+  static String activeOtp = "889922"; // OTP Admin untuk Void
 }
 
 // 1. HALAMAN PILIH MODE LOGIN
@@ -52,7 +61,7 @@ class RoleSelectPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1E3A8A), // bg-blue-900
+      backgroundColor: const Color(0xFF1E3A8A),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -376,8 +385,9 @@ class MainDashboard extends StatefulWidget {
 }
 
 class _MainDashboardState extends State<MainDashboard> {
-  String currentView = 'pos';
+  String currentView = 'pos'; // 'pos', 'rekap', 'rekapkasir', 'riwayat', 'shift'
   List<Map<String, dynamic>> cart = [];
+  String searchQuery = "";
 
   double get cartTotal =>
       cart.fold(0, (sum, item) => sum + (item['price'] * item['qty']));
@@ -406,8 +416,10 @@ class _MainDashboardState extends State<MainDashboard> {
       (sum, item) => sum + ((item['hpp'] ?? 0) * item['qty']),
     );
 
+    String trxId = "TRX-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}";
+
     Map<String, dynamic> newTx = {
-      'id': "TRX-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}",
+      'id': trxId,
       'time': DateTime.now().toString(),
       'kasir': "Budi Santoso",
       'items': List.from(cart),
@@ -415,10 +427,10 @@ class _MainDashboardState extends State<MainDashboard> {
       'total_hpp': totalHpp,
       'profit': total - totalHpp,
       'method': 'Cash',
+      'voided': false,
     };
 
     AppDatabase.transactions.add(newTx);
-
     setState(() {
       cart.clear();
     });
@@ -428,12 +440,77 @@ class _MainDashboardState extends State<MainDashboard> {
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Transaksi Berhasil!'),
-        content: Text('Pembayaran sebesar Rp $total berhasil disimpan.'),
+        content: Text('ID: $trxId\nTotal: Rp $total'),
         actions: [
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A)),
             onPressed: () => Navigator.pop(context),
-            child: const Text('Transaksi Baru', style: TextStyle(color: Colors.white)),
+            child: const Text('OK', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Fungsi Request Void dengan OTP Admin
+  void requestVoidTransaction(Map<String, dynamic> tx) {
+    TextEditingController otpController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Void Transaksi (Minta OTP Admin)'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('No Transaksi yang akan di-void:'),
+            SelectableText(
+              tx['id'],
+              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Info: OTP aktif muncul di device admin (OTP simulasi: 889922)',
+              style: TextStyle(fontSize: 11, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: otpController,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              decoration: const InputDecoration(
+                labelText: 'Masukkan Kode OTP Admin',
+                counterText: '',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              if (otpController.text == AppDatabase.activeOtp) {
+                setState(() {
+                  tx['voided'] = true;
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Transaksi berhasil di-void!'), backgroundColor: Colors.red),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Kode OTP Salah!'), backgroundColor: Colors.red),
+                );
+              }
+            },
+            child: const Text('Konfirmasi Void', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -450,6 +527,10 @@ class _MainDashboardState extends State<MainDashboard> {
               ? 'Point of Sale'
               : currentView == 'rekap'
               ? 'Detail Rekapitulasi'
+              : currentView == 'riwayat'
+              ? 'Riwayat Transaksi'
+              : currentView == 'shift'
+              ? 'Riwayat Shift Kasir'
               : 'Laporan Omset Per Kasir',
           style: const TextStyle(color: Colors.white, fontSize: 16),
         ),
@@ -495,6 +576,22 @@ class _MainDashboardState extends State<MainDashboard> {
                 Navigator.pop(context);
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.history),
+              title: const Text('Riwayat Transaksi'),
+              onTap: () {
+                setState(() => currentView = 'riwayat');
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.access_time),
+              title: const Text('Riwayat Shift'),
+              onTap: () {
+                setState(() => currentView = 'shift');
+                Navigator.pop(context);
+              },
+            ),
             if (!widget.isAdmin)
               ListTile(
                 leading: const Icon(Icons.pie_chart),
@@ -534,9 +631,13 @@ class _MainDashboardState extends State<MainDashboard> {
       ),
       body: currentView == 'pos'
           ? buildPosView()
-          : currentView == 'rekap'
-              ? buildRekapView()
-              : buildAdminRekapView(),
+          : currentView == 'riwayat'
+              ? buildRiwayatView()
+              : currentView == 'shift'
+                  ? buildShiftView()
+                  : currentView == 'rekap'
+                      ? buildRekapView()
+                      : buildAdminRekapView(),
     );
   }
 
@@ -630,11 +731,87 @@ class _MainDashboardState extends State<MainDashboard> {
     );
   }
 
-  Widget buildRekapView() {
-    double totalOmset = AppDatabase.transactions.fold(
-      0,
-      (sum, item) => sum + (item['total'] as double),
+  // Tampilan Riwayat Transaksi + Fitur Search & Void
+  Widget buildRiwayatView() {
+    var filteredList = AppDatabase.transactions.where((t) {
+      return t['id'].toLowerCase().contains(searchQuery.toLowerCase()) ||
+          t['kasir'].toLowerCase().contains(searchQuery.toLowerCase());
+    }).toList();
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: TextField(
+            onChanged: (val) => setState(() => searchQuery = val),
+            decoration: InputDecoration(
+              hintText: 'Cari No Transaksi / Nama Kasir...',
+              prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              filled: true,
+              fillColor: Colors.white,
+            ),
+          ),
+        ),
+        Expanded(
+          child: filteredList.isEmpty
+              ? const Center(child: Text('Tidak ada riwayat transaksi.'))
+              : ListView.builder(
+                  itemCount: filteredList.length,
+                  itemBuilder: (context, index) {
+                    var tx = filteredList[index];
+                    bool isVoid = tx['voided'] ?? false;
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      child: ListTile(
+                        title: Text('${tx['id']} - ${tx['kasir']}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              decoration: isVoid ? TextDecoration.lineThrough : null,
+                            )),
+                        subtitle: Text('Total: Rp ${tx['total']} | ${tx['time']}\nStatus: ${isVoid ? "VOIDED" : "Sukses"}'),
+                        isThreeLine: true,
+                        trailing: !isVoid
+                            ? ElevatedButton(
+                                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                onPressed: () => requestVoidTransaction(tx),
+                                child: const Text('Void', style: TextStyle(color: Colors.white)),
+                              )
+                            : const Text('Batal', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
+  }
+
+  // Tampilan Riwayat Shift Kasir
+  Widget buildShiftView() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: AppDatabase.shiftHistory.length,
+      itemBuilder: (context, index) {
+        var shift = AppDatabase.shiftHistory[index];
+        return Card(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: ListTile(
+            leading: const Icon(Icons.schedule, color: Colors.blue),
+            title: Text('Kasir: ${shift['kasir']}'),
+            subtitle: Text('Tanggal: ${shift['date']}\nShift: ${shift['shift']}'),
+            trailing: Text('Rp ${shift['omset']}',
+                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget buildRekapView() {
+    double totalOmset = AppDatabase.transactions
+        .where((t) => !(t['voided'] ?? false))
+        .fold(0, (sum, item) => sum + (item['total'] as double));
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -665,6 +842,7 @@ class _MainDashboardState extends State<MainDashboard> {
     );
   }
 
+  // Laporan Admin + Tombol Hapus Kasir
   Widget buildAdminRekapView() {
     if (AppDatabase.transactions.isEmpty) {
       return const Padding(
@@ -678,9 +856,9 @@ class _MainDashboardState extends State<MainDashboard> {
       );
     }
 
-    // Rekap per kasir otomatis berdasarkan data transaksi tersimpan
     Map<String, Map<String, dynamic>> kasirMap = {};
     for (var t in AppDatabase.transactions) {
+      if (t['voided'] ?? false) continue;
       String kasir = t['kasir'];
       if (!kasirMap.containsKey(kasir)) {
         kasirMap[kasir] = {'count': 0, 'omset': 0.0, 'profit': 0.0};
@@ -708,20 +886,21 @@ class _MainDashboardState extends State<MainDashboard> {
                     Text(kasirName,
                         style: const TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 16)),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text('${data['count']} Transaksi',
-                          style: const TextStyle(
-                              color: Colors.blue, fontSize: 12)),
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () {
+                        setState(() {
+                          AppDatabase.transactions.removeWhere((t) => t['kasir'] == kasirName);
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Data kasir $kasirName berhasil dihapus!')),
+                        );
+                      },
                     ),
                   ],
                 ),
                 const Divider(),
+                Text('Total Transaksi: ${data['count']}'),
                 Text('Total Omset: Rp ${data['omset']}'),
                 Text('Keuntungan: Rp ${data['profit']}',
                     style: const TextStyle(color: Colors.green)),
