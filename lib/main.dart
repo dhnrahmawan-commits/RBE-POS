@@ -4,35 +4,45 @@ void main() {
   runApp(const RbePosApp());
 }
 
-class RbePosApp extends StatefulWidget {
+class RbePosApp extends StatelessWidget {
   const RbePosApp({super.key});
-
-  @override
-  State<RbePosApp> createState() => _RbePosAppState();
-}
-
-class _RbePosAppState extends State<RbePosApp> {
-  bool _isDarkMode = false;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'RBE POS - Kasir Pintar',
       debugShowCheckedModeBanner: false,
-      themeMode: _isDarkMode ? ThemeMode.dark : ThemeMode.light,
       theme: ThemeData(
         primarySwatch: Colors.blue,
-        brightness: Brightness.light,
         scaffoldBackgroundColor: const Color(0xFFF8FAFC),
-      ),
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: const Color(0xFF0F172A),
+        fontFamily: 'Inter',
       ),
       home: const RoleSelectPage(),
     );
   }
+}
+
+// Global Storage untuk simulasi database offline-first & multi-device
+class AppDatabase {
+  static List<Map<String, dynamic>> transactions = [];
+  static List<Map<String, dynamic>> products = [
+    {
+      'id': 1,
+      'name': 'Nasi goreng kampung',
+      'stock': 50,
+      'category': 'Food',
+      'hpp': 15000,
+      'price': 21600,
+    },
+    {
+      'id': 2,
+      'name': 'Es Teh Manis',
+      'stock': 100,
+      'category': 'Beverage',
+      'hpp': 3000,
+      'price': 5000,
+    },
+  ];
 }
 
 // 1. HALAMAN PILIH MODE LOGIN
@@ -151,7 +161,7 @@ class RoleSelectPage extends StatelessWidget {
 
 // 2. HALAMAN INPUT PIN
 class LoginPage extends StatefulWidget {
-  final String role; // 'kasir' atau 'admin'
+  final String role;
   const LoginPage({super.key, required this.role});
 
   @override
@@ -287,7 +297,6 @@ class _LoginPageState extends State<LoginPage> {
                 }),
               ),
               const Spacer(),
-              // Keypad
               GridView.count(
                 crossAxisCount: 3,
                 shrinkWrap: true,
@@ -357,7 +366,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-// 3. DASHBOARD UTAMA (POS & MENU)
+// 3. DASHBOARD UTAMA
 class MainDashboard extends StatefulWidget {
   final bool isAdmin;
   const MainDashboard({super.key, required this.isAdmin});
@@ -367,25 +376,8 @@ class MainDashboard extends StatefulWidget {
 }
 
 class _MainDashboardState extends State<MainDashboard> {
-  String currentView = 'pos'; // 'pos', 'rekap', 'rekapkasir'
+  String currentView = 'pos';
   List<Map<String, dynamic>> cart = [];
-
-  final List<Map<String, dynamic>> products = [
-    {
-      'name': 'Nasi goreng kampung',
-      'stock': 50,
-      'category': 'Food',
-      'hpp': 15000,
-      'price': 21600,
-    },
-    {
-      'name': 'Es Teh Manis',
-      'stock': 100,
-      'category': 'Beverage',
-      'hpp': 3000,
-      'price': 5000,
-    },
-  ];
 
   double get cartTotal =>
       cart.fold(0, (sum, item) => sum + (item['price'] * item['qty']));
@@ -408,37 +400,40 @@ class _MainDashboardState extends State<MainDashboard> {
   }
 
   void processPayment() {
+    double total = cartTotal;
+    double totalHpp = cart.fold(
+      0,
+      (sum, item) => sum + ((item['hpp'] ?? 0) * item['qty']),
+    );
+
+    Map<String, dynamic> newTx = {
+      'id': "TRX-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}",
+      'time': DateTime.now().toString(),
+      'kasir': "Budi Santoso",
+      'items': List.from(cart),
+      'total': total,
+      'total_hpp': totalHpp,
+      'profit': total - totalHpp,
+      'method': 'Cash',
+    };
+
+    AppDatabase.transactions.add(newTx);
+
+    setState(() {
+      cart.clear();
+    });
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Konfirmasi Pembayaran'),
-        content: Text('Total Tagihan: Rp $cartTotal'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Transaksi Berhasil!'),
+        content: Text('Pembayaran sebesar Rp $total berhasil disimpan.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                cart.clear();
-              });
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Transaksi Berhasil!'),
-                  content: const Text('Pembayaran tunai berhasil diproses.'),
-                  actions: [
-                    ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('OK'),
-                    ),
-                  ],
-                ),
-              );
-            },
-            child: const Text('Bayar'),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A)),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Transaksi Baru', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -537,10 +532,9 @@ class _MainDashboardState extends State<MainDashboard> {
           ],
         ),
       ),
-      body:
-          currentView == 'pos'
-              ? buildPosView()
-              : currentView == 'rekap'
+      body: currentView == 'pos'
+          ? buildPosView()
+          : currentView == 'rekap'
               ? buildRekapView()
               : buildAdminRekapView(),
     );
@@ -552,9 +546,9 @@ class _MainDashboardState extends State<MainDashboard> {
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.all(12),
-            itemCount: products.length,
+            itemCount: AppDatabase.products.length,
             itemBuilder: (context, index) {
-              var p = products[index];
+              var p = AppDatabase.products[index];
               return Card(
                 margin: const EdgeInsets.only(bottom: 8),
                 shape: RoundedRectangleBorder(
@@ -637,6 +631,11 @@ class _MainDashboardState extends State<MainDashboard> {
   }
 
   Widget buildRekapView() {
+    double totalOmset = AppDatabase.transactions.fold(
+      0,
+      (sum, item) => sum + (item['total'] as double),
+    );
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Card(
@@ -646,16 +645,19 @@ class _MainDashboardState extends State<MainDashboard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
-            children: const [
-              Text(
+            children: [
+              const Text(
                 'Status Shift',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
-              Divider(),
-              Text('Shift Awal: 00.20'),
-              Text('Shift Akhir: Sedang Berlangsung', style: TextStyle(color: Colors.amber)),
-              SizedBox(height: 16),
-              Text('Total Omset: Rp 0'),
+              const Divider(),
+              const Text('Shift Awal: 00.20'),
+              const Text('Shift Akhir: Sedang Berlangsung',
+                  style: TextStyle(color: Colors.amber)),
+              const SizedBox(height: 16),
+              Text('Total Omset: Rp $totalOmset',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blue)),
             ],
           ),
         ),
@@ -664,14 +666,70 @@ class _MainDashboardState extends State<MainDashboard> {
   }
 
   Widget buildAdminRekapView() {
-    return const Padding(
-      padding: EdgeInsets.all(16.0),
-      child: Center(
-        child: Text(
-          'Belum ada data transaksi dari kasir.',
-          style: TextStyle(color: Colors.grey),
+    if (AppDatabase.transactions.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Center(
+          child: Text(
+            'Belum ada data transaksi dari kasir.',
+            style: TextStyle(color: Colors.grey),
+          ),
         ),
-      ),
+      );
+    }
+
+    // Rekap per kasir otomatis berdasarkan data transaksi tersimpan
+    Map<String, Map<String, dynamic>> kasirMap = {};
+    for (var t in AppDatabase.transactions) {
+      String kasir = t['kasir'];
+      if (!kasirMap.containsKey(kasir)) {
+        kasirMap[kasir] = {'count': 0, 'omset': 0.0, 'profit': 0.0};
+      }
+      kasirMap[kasir]!['count'] += 1;
+      kasirMap[kasir]!['omset'] += t['total'];
+      kasirMap[kasir]!['profit'] += t['profit'];
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: kasirMap.entries.map((entry) {
+        String kasirName = entry.key;
+        var data = entry.value;
+        return Card(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(kasirName,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text('${data['count']} Transaksi',
+                          style: const TextStyle(
+                              color: Colors.blue, fontSize: 12)),
+                    ),
+                  ],
+                ),
+                const Divider(),
+                Text('Total Omset: Rp ${data['omset']}'),
+                Text('Keuntungan: Rp ${data['profit']}',
+                    style: const TextStyle(color: Colors.green)),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }
