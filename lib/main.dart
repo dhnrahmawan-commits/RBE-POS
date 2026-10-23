@@ -14,9 +14,14 @@ class RbePosApp extends StatelessWidget {
       title: 'RBE POS - Kasir Pintar & Admin',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: const Color(0xFF0F172A),
+        primaryColor: const Color(0xFF1E3A8A),
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
         fontFamily: 'Inter',
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF1E3A8A),
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
       ),
       home: const RoleSelectPage(),
     );
@@ -54,10 +59,14 @@ class AppDatabase {
   static bool isShiftActive = false;
   static String shiftStartTime = "-";
   static double kasAwal = 0;
-  static String activeOtp = "889922";
+  
+  // Variabel untuk menyimpan OTP Void yang digenerate Admin
+  static String currentVoidOtp = "";
 }
 
-// 1. PILIH ROLE
+// ==========================================
+// 1. HALAMAN PILIH ROLE
+// ==========================================
 class RoleSelectPage extends StatelessWidget {
   const RoleSelectPage({super.key});
 
@@ -110,7 +119,9 @@ class RoleSelectPage extends StatelessWidget {
   }
 }
 
-// 2. LOGIN PIN
+// ==========================================
+// 2. HALAMAN LOGIN PIN
+// ==========================================
 class LoginPage extends StatefulWidget {
   final String role;
   const LoginPage({super.key, required this.role});
@@ -136,7 +147,6 @@ class _LoginPageState extends State<LoginPage> {
     if (widget.role == 'admin' && pinInput == "999999") {
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainDashboard(isAdmin: true)));
     } else if (widget.role == 'kasir' && pinInput == "123456") {
-      // Otomatis terdeteksi di Log Device saat kasir login
       bool exists = AppDatabase.connectedDevices.any((d) => d['kasir'] == 'Budi Santoso');
       if (!exists) {
         AppDatabase.connectedDevices.add({
@@ -222,7 +232,9 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
+// ==========================================
 // 3. DASHBOARD UTAMA
+// ==========================================
 class MainDashboard extends StatefulWidget {
   final bool isAdmin;
   const MainDashboard({super.key, required this.isAdmin});
@@ -251,7 +263,6 @@ class _MainDashboardState extends State<MainDashboard> {
     });
   }
 
-  // Fitur Custom Harga Produk di POS
   void customPriceDialog(Map<String, dynamic> p) {
     TextEditingController priceController = TextEditingController(text: p['price'].toString());
     showDialog(
@@ -284,7 +295,6 @@ class _MainDashboardState extends State<MainDashboard> {
     );
   }
 
-  // UI Metode Pembayaran Grid Rapi
   void openCheckout() {
     String selectedMethod = "Cash";
 
@@ -380,7 +390,6 @@ class _MainDashboardState extends State<MainDashboard> {
 
     AppDatabase.transactions.add(newTx);
     
-    // Update shift history omset harian kasir
     var shiftIndex = AppDatabase.shiftHistory.indexWhere((s) => s['kasir'] == 'Budi Santoso' && s['date'] == todayDate);
     if (shiftIndex >= 0) {
       AppDatabase.shiftHistory[shiftIndex]['omset'] += total;
@@ -437,22 +446,20 @@ class _MainDashboardState extends State<MainDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E3A8A),
         title: Text(
           currentView == 'pos' ? 'Point of Sale' :
           currentView == 'rekap' ? 'Detail Rekapitulasi' :
           currentView == 'riwayat' ? 'Riwayat Penjualan' :
           currentView == 'shift' ? 'Shift Management' :
           currentView == 'printer' ? 'Setting Printer & Struk' :
-          currentView == 'logdevice' ? 'Log Device' :
-          currentView == 'keykasir' ? 'Key Kasir' :
+          currentView == 'logdevice' ? 'Log Device Terhubung' :
+          currentView == 'keykasir' ? 'Generate Key Kasir' :
           currentView == 'settingtoko' ? 'Setting Toko' :
-          currentView == 'settingproduk' ? 'Setting Produk' :
+          currentView == 'settingproduk' ? 'Setting Produk & Harga' :
           currentView == 'settingkategori' ? 'Setting Kategori' :
           currentView == 'admintransaksi' ? 'Laporan Transaksi Admin' : 'Laporan Omset Per Tanggal',
-          style: const TextStyle(color: Colors.white, fontSize: 16),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
       ),
       drawer: Drawer(
         backgroundColor: Colors.white,
@@ -473,15 +480,15 @@ class _MainDashboardState extends State<MainDashboard> {
                 ],
               ),
             ),
-            ListTile(leading: const Icon(Icons.point_of_sale), title: const Text('Point of Sale'), onTap: () { setState(() => currentView = 'pos'); Navigator.pop(context); }),
+            ListTile(leading: const Icon(Icons.point_of_sale), title: const Text('Point of Sale'), onTap: () { setState(() { currentView = 'pos'; searchQuery = ''; }); Navigator.pop(context); }),
             if (widget.isAdmin) ...[
               ListTile(leading: const Icon(Icons.devices), title: const Text('Log Device'), onTap: () { setState(() => currentView = 'logdevice'); Navigator.pop(context); }),
-              ListTile(leading: const Icon(Icons.key), title: const Text('Key Kasir'), onTap: () { setState(() => currentView = 'keykasir'); Navigator.pop(context); }),
-              ListTile(leading: const Icon(Icons.receipt_long), title: const Text('Laporan Transaksi & Void'), onTap: () { setState(() => currentView = 'admintransaksi'); Navigator.pop(context); }),
+              ListTile(leading: const Icon(Icons.vpn_key), title: const Text('Key Kasir'), onTap: () { setState(() => currentView = 'keykasir'); Navigator.pop(context); }),
+              ListTile(leading: const Icon(Icons.receipt_long), title: const Text('Laporan Transaksi & Void'), onTap: () { setState(() { currentView = 'admintransaksi'; searchQuery = ''; }); Navigator.pop(context); }),
               ListTile(leading: const Icon(Icons.date_range), title: const Text('Laporan Omset Per Tanggal'), onTap: () { setState(() => currentView = 'adminrekap'); Navigator.pop(context); }),
-              ListTile(leading: const Icon(Icons.settings), title: const Text('Setting Toko'), onTap: () { setState(() => currentView = 'settingtoko'); Navigator.pop(context); }),
+              ListTile(leading: const Icon(Icons.storefront), title: const Text('Setting Toko'), onTap: () { setState(() => currentView = 'settingtoko'); Navigator.pop(context); }),
               ListTile(leading: const Icon(Icons.category), title: const Text('Setting Kategori'), onTap: () { setState(() => currentView = 'settingkategori'); Navigator.pop(context); }),
-              ListTile(leading: const Icon(Icons.inventory), title: const Text('Setting Produk'), onTap: () { setState(() => currentView = 'settingproduk'); Navigator.pop(context); }),
+              ListTile(leading: const Icon(Icons.inventory_2), title: const Text('Setting Produk'), onTap: () { setState(() => currentView = 'settingproduk'); Navigator.pop(context); }),
             ] else ...[
               ListTile(leading: const Icon(Icons.pie_chart), title: const Text('Rekapitulasi'), onTap: () { setState(() => currentView = 'rekap'); Navigator.pop(context); }),
               ListTile(leading: const Icon(Icons.history), title: const Text('Riwayat Penjualan'), onTap: () { setState(() => currentView = 'riwayat'); Navigator.pop(context); }),
@@ -493,7 +500,6 @@ class _MainDashboardState extends State<MainDashboard> {
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text('Keluar / Ganti Akun', style: TextStyle(color: Colors.red)),
               onTap: () {
-                // Logout dari Log Device otomatis
                 AppDatabase.connectedDevices.removeWhere((d) => d['kasir'] == 'Budi Santoso');
                 Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const RoleSelectPage()));
               },
@@ -501,22 +507,23 @@ class _MainDashboardState extends State<MainDashboard> {
           ],
         ),
       ),
-      body: Container(
-        color: const Color(0xFFF8FAFC),
-        child: currentView == 'pos' ? buildPosView() :
-               currentView == 'rekap' ? buildRekapView() :
-               currentView == 'riwayat' ? buildRiwayatView() :
-               currentView == 'shift' ? buildShiftView() :
-               currentView == 'printer' ? buildPrinterView() :
-               currentView == 'logdevice' ? buildLogDeviceView() :
-               currentView == 'keykasir' ? buildKeyKasirView() :
-               currentView == 'settingtoko' ? buildSettingTokoView() :
-               currentView == 'settingkategori' ? buildSettingKategoriView() :
-               currentView == 'settingproduk' ? buildSettingProdukView() :
-               currentView == 'admintransaksi' ? buildAdminTransaksiView() : buildAdminRekapView(),
-      ),
+      body: currentView == 'pos' ? buildPosView() :
+            currentView == 'rekap' ? buildRekapView() :
+            currentView == 'riwayat' ? buildRiwayatView() :
+            currentView == 'shift' ? buildShiftView() :
+            currentView == 'printer' ? buildPrinterView() :
+            currentView == 'logdevice' ? buildLogDeviceView() :
+            currentView == 'keykasir' ? buildKeyKasirView() :
+            currentView == 'settingtoko' ? buildSettingTokoView() :
+            currentView == 'settingkategori' ? buildSettingKategoriView() :
+            currentView == 'settingproduk' ? buildSettingProdukView() :
+            currentView == 'admintransaksi' ? buildAdminTransaksiView() : buildAdminRekapView(),
     );
   }
+
+  // ============================
+  // WIDGET BUILDERS
+  // ============================
 
   Widget buildPosView() {
     var filteredProducts = AppDatabase.products.where((p) {
@@ -620,13 +627,14 @@ class _MainDashboardState extends State<MainDashboard> {
     );
   }
 
-  // Detail Rekapitulasi Kasir Fix Bug
   Widget buildRekapView() {
     double totalOmset = AppDatabase.transactions.where((t) => t['kasir'] == 'Budi Santoso' && !(t['voided'] ?? false)).fold(0, (sum, item) => sum + (item['total'] as double));
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        color: Colors.white,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.grey.shade200)),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -636,11 +644,11 @@ class _MainDashboardState extends State<MainDashboard> {
               const Text('Status Shift Kasir', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const Divider(),
               Text('Shift Awal: ${AppDatabase.shiftStartTime}'),
-              Text(AppDatabase.isShiftActive ? 'Shift Akhir: Sedang Berlangsung' : 'Shift Akhir: Selesai', style: TextStyle(color: AppDatabase.isShiftActive ? Colors.amber : Colors.green)),
+              Text(AppDatabase.isShiftActive ? 'Shift Akhir: Sedang Berlangsung' : 'Shift Akhir: Selesai', style: TextStyle(color: AppDatabase.isShiftActive ? Colors.amber.shade700 : Colors.green)),
               const SizedBox(height: 8),
               Text('Kas Awal: Rp ${AppDatabase.kasAwal}'),
               const SizedBox(height: 16),
-              Text('Total Omset Shift: Rp $totalOmset', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blue)),
+              Text('Total Omset Shift: Rp $totalOmset', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF2563EB))),
             ],
           ),
         ),
@@ -648,6 +656,7 @@ class _MainDashboardState extends State<MainDashboard> {
     );
   }
 
+  // RIWAYAT KASIR (DENGAN KLIK DETAIL, COPY TRX & VOID OTP)
   Widget buildRiwayatView() {
     var myTx = AppDatabase.transactions.where((t) => t['kasir'] == 'Budi Santoso').toList();
     return ListView.builder(
@@ -657,28 +666,77 @@ class _MainDashboardState extends State<MainDashboard> {
         var tx = myTx[index];
         bool isVoid = tx['voided'] ?? false;
         return Card(
+          elevation: 0, color: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
           child: ListTile(
-            title: Row(
-              children: [
-                Text(tx['id'], style: TextStyle(fontWeight: FontWeight.bold, color: isVoid ? Colors.red : Colors.blue, decoration: isVoid ? TextDecoration.lineThrough : null)),
-                const SizedBox(width: 8),
-                InkWell(
-                  onTap: () {
-                    Clipboard.setData(ClipboardData(text: tx['id']));
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Nomor Transaksi ${tx['id']} berhasil disalin!')));
-                  },
-                  child: const Icon(Icons.copy, size: 16, color: Colors.grey),
-                ),
-              ],
-            ),
-            subtitle: Text('Total: Rp ${tx['total']} • ${tx['method']} • ${isVoid ? "STATUS: VOIDED" : "Sukses"}'),
+            title: Text(tx['id'], style: TextStyle(fontWeight: FontWeight.bold, decoration: isVoid ? TextDecoration.lineThrough : null, color: isVoid ? Colors.red : Colors.black87)),
+            subtitle: Text('Total: Rp ${tx['total']} • ${isVoid ? "VOIDED" : "Sukses"}'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (context) {
+                  TextEditingController otpController = TextEditingController();
+                  return AlertDialog(
+                    title: const Text('Detail Transaksi'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(tx['id'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                            IconButton(
+                              icon: const Icon(Icons.copy, size: 20),
+                              onPressed: () {
+                                Clipboard.setData(ClipboardData(text: tx['id']));
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ID Transaksi disalin!')));
+                              },
+                            ),
+                          ],
+                        ),
+                        Text('Total: Rp ${tx['total']}'),
+                        Text('Metode: ${tx['method']}'),
+                        const SizedBox(height: 16),
+                        if (!isVoid) ...[
+                          const Text('Void Pesanan (Butuh OTP Admin):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: otpController,
+                            decoration: const InputDecoration(hintText: 'Masukkan OTP', border: OutlineInputBorder(), isDense: true),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ] else const Text('STATUS: VOIDED', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))
+                      ],
+                    ),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tutup')),
+                      if (!isVoid)
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                          onPressed: () {
+                            if (otpController.text == AppDatabase.currentVoidOtp && otpController.text.isNotEmpty) {
+                              setState(() { tx['voided'] = true; AppDatabase.currentVoidOtp = ""; });
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaksi berhasil di-void!')));
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('OTP Salah!')));
+                            }
+                          },
+                          child: const Text('Void Transaksi', style: TextStyle(color: Colors.white)),
+                        ),
+                    ],
+                  );
+                }
+              );
+            },
           ),
         );
       },
     );
   }
 
-  // SHIFT MANAGEMENT (MULAI / AKHIRI SHIFT + RIWAYAT LENGKAP)
   Widget buildShiftView() {
     TextEditingController kasAwalController = TextEditingController();
     return Padding(
@@ -687,19 +745,20 @@ class _MainDashboardState extends State<MainDashboard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            color: Colors.white, elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.grey.shade200)),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(AppDatabase.isShiftActive ? 'Shift Sedang Aktif' : 'Shift Belum Dimulai', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppDatabase.isShiftActive ? Colors.green : Colors.red)),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   if (!AppDatabase.isShiftActive) ...[
-                    TextField(controller: kasAwalController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Masukkan Modal Kas Awal (Rp)', filled: true, fillColor: Colors.white)),
+                    TextField(controller: kasAwalController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Masukkan Modal Kas Awal (Rp)', border: OutlineInputBorder())),
                     const SizedBox(height: 12),
                     ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green, minimumSize: const Size(double.infinity, 48)),
                       onPressed: () {
                         setState(() {
                           AppDatabase.isShiftActive = true;
@@ -712,7 +771,7 @@ class _MainDashboardState extends State<MainDashboard> {
                     ),
                   ] else ...[
                     ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red, minimumSize: const Size(double.infinity, 48)),
                       onPressed: () {
                         setState(() {
                           AppDatabase.isShiftActive = false;
@@ -727,7 +786,7 @@ class _MainDashboardState extends State<MainDashboard> {
             ),
           ),
           const SizedBox(height: 16),
-          const Text('Riwayat Shift & Omset Harian Budi Santoso', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+          const Text('Riwayat Shift & Omset Harian', style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Expanded(
             child: ListView.builder(
@@ -735,6 +794,7 @@ class _MainDashboardState extends State<MainDashboard> {
               itemBuilder: (context, index) {
                 var s = AppDatabase.shiftHistory[index];
                 return Card(
+                  color: Colors.white, elevation: 0, shape: RoundedRectangleBorder(side: BorderSide(color: Colors.grey.shade200), borderRadius: BorderRadius.circular(12)),
                   child: ListTile(
                     title: Text('Tanggal: ${s['date']} (${s['shift']})'),
                     subtitle: Text('Kasir: ${s['kasir']}'),
@@ -749,11 +809,45 @@ class _MainDashboardState extends State<MainDashboard> {
     );
   }
 
+  // SETTING PRINTER
   Widget buildPrinterView() {
-    return const Center(child: Text('Setting Printer & Struk Kasir', style: TextStyle(color: Colors.white)));
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Pengaturan Struk', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 8),
+          Card(
+            color: Colors.white, elevation: 0, shape: RoundedRectangleBorder(side: BorderSide(color: Colors.grey.shade200), borderRadius: BorderRadius.circular(12)),
+            child: ListTile(
+              title: const Text('Tampilkan Logo di Struk'),
+              trailing: Switch(value: true, activeColor: const Color(0xFF1E3A8A), onChanged: (val) {}),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text('Printer Bluetooth Terhubung', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 8),
+          Card(
+            color: Colors.white, elevation: 0, shape: RoundedRectangleBorder(side: BorderSide(color: Colors.green.shade200), borderRadius: BorderRadius.circular(12)),
+            child: ListTile(
+              leading: const Icon(Icons.print, color: Color(0xFF1E3A8A)),
+              title: const Text('RPP02N Printer (Aktif)', style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: const Text('Mac: 00:11:22:33:44:55'),
+              trailing: ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mencetak Test Print...')));
+                },
+                child: const Text('Test Print', style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  // LOG DEVICE: KLIK UNTUK LOGOUT PERANGKAT & OTOMATIS TERDETEKSI KASIR
   Widget buildLogDeviceView() {
     return ListView.builder(
       padding: const EdgeInsets.all(12),
@@ -761,17 +855,16 @@ class _MainDashboardState extends State<MainDashboard> {
       itemBuilder: (context, index) {
         var dev = AppDatabase.connectedDevices[index];
         return Card(
+          color: Colors.white, elevation: 0, shape: RoundedRectangleBorder(side: BorderSide(color: Colors.grey.shade200), borderRadius: BorderRadius.circular(12)),
           child: ListTile(
             leading: const Icon(Icons.devices, color: Colors.green),
-            title: Text(dev['deviceName']),
+            title: Text(dev['deviceName'], style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text('IP: ${dev['ip']} • Kasir: ${dev['kasir']}'),
             trailing: IconButton(
               icon: const Icon(Icons.logout, color: Colors.red),
               onPressed: () {
-                setState(() {
-                  AppDatabase.connectedDevices.removeAt(index);
-                });
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Perangkat berhasil dikeluarkan (Logout)!')));
+                setState(() { AppDatabase.connectedDevices.removeAt(index); });
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Perangkat berhasil dikeluarkan!')));
               },
             ),
           ),
@@ -780,7 +873,6 @@ class _MainDashboardState extends State<MainDashboard> {
     );
   }
 
-  // KEY KASIR: TERSIMPAN DINAMIS DI BAWAHNYA
   Widget buildKeyKasirView() {
     TextEditingController nameController = TextEditingController();
     TextEditingController branchController = TextEditingController();
@@ -791,20 +883,18 @@ class _MainDashboardState extends State<MainDashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Nama Kasir', filled: true, fillColor: Colors.white)),
+          TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Nama Kasir', border: OutlineInputBorder(), isDense: true, filled: true, fillColor: Colors.white)),
           const SizedBox(height: 8),
-          TextField(controller: branchController, decoration: const InputDecoration(labelText: 'Nama Cabang', filled: true, fillColor: Colors.white)),
+          TextField(controller: branchController, decoration: const InputDecoration(labelText: 'Nama Cabang', border: OutlineInputBorder(), isDense: true, filled: true, fillColor: Colors.white)),
           const SizedBox(height: 8),
-          TextField(controller: pinController, keyboardType: TextInputType.number, maxLength: 6, decoration: const InputDecoration(labelText: 'PIN Akses Kasir (6 Digit)', filled: true, fillColor: Colors.white, counterText: '')),
+          TextField(controller: pinController, keyboardType: TextInputType.number, maxLength: 6, decoration: const InputDecoration(labelText: 'PIN Akses Kasir (6 Digit)', border: OutlineInputBorder(), isDense: true, filled: true, fillColor: Colors.white, counterText: '')),
           const SizedBox(height: 12),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A)),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A), minimumSize: const Size(double.infinity, 48)),
             onPressed: () {
               if (nameController.text.isNotEmpty && pinController.text.length == 6) {
-                setState(() {
-                  AppDatabase.cashiers.add({'name': nameController.text, 'branch': branchController.text, 'pin': pinController.text});
-                });
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Key Kasir Berhasil Dibuat dan Disimpan!')));
+                setState(() { AppDatabase.cashiers.add({'name': nameController.text, 'branch': branchController.text, 'pin': pinController.text}); });
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Key Kasir Berhasil Disimpan!')));
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lengkapi data dan PIN harus 6 digit!'), backgroundColor: Colors.red));
               }
@@ -812,7 +902,7 @@ class _MainDashboardState extends State<MainDashboard> {
             child: const Text('Buat & Simpan Key Kasir', style: TextStyle(color: Colors.white)),
           ),
           const SizedBox(height: 16),
-          const Text('DAFTAR KEY KASIR AKTIF', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+          const Text('DAFTAR KEY KASIR AKTIF', style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Expanded(
             child: ListView.builder(
@@ -820,10 +910,11 @@ class _MainDashboardState extends State<MainDashboard> {
               itemBuilder: (context, index) {
                 var c = AppDatabase.cashiers[index];
                 return Card(
+                  color: Colors.white, elevation: 0, shape: RoundedRectangleBorder(side: BorderSide(color: Colors.grey.shade200), borderRadius: BorderRadius.circular(12)),
                   child: ListTile(
                     title: Text(c['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text('${c['branch']} • PIN: ${c['pin']}'),
-                    trailing: const Chip(label: Text('Aktif', style: TextStyle(color: Colors.green)), backgroundColor: Color(0xFFD1FAE5)),
+                    trailing: const Chip(label: Text('Aktif', style: TextStyle(color: Colors.green)), backgroundColor: Color(0xFFD1FAE5), side: BorderSide.none),
                   ),
                 );
               },
@@ -843,12 +934,12 @@ class _MainDashboardState extends State<MainDashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextField(controller: storeController, decoration: const InputDecoration(labelText: 'Nama Toko Utama', filled: true, fillColor: Colors.white)),
-          const SizedBox(height: 10),
-          TextField(controller: addressController, decoration: const InputDecoration(labelText: 'Alamat Toko', filled: true, fillColor: Colors.white)),
+          TextField(controller: storeController, decoration: const InputDecoration(labelText: 'Nama Toko Utama', border: OutlineInputBorder(), isDense: true, filled: true, fillColor: Colors.white)),
+          const SizedBox(height: 12),
+          TextField(controller: addressController, decoration: const InputDecoration(labelText: 'Alamat Toko', border: OutlineInputBorder(), isDense: true, filled: true, fillColor: Colors.white)),
           const SizedBox(height: 16),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A)),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A), minimumSize: const Size(double.infinity, 48)),
             onPressed: () {
               setState(() {
                 AppDatabase.storeName = storeController.text;
@@ -863,7 +954,6 @@ class _MainDashboardState extends State<MainDashboard> {
     );
   }
 
-  // SETTING KATEGORI
   Widget buildSettingKategoriView() {
     TextEditingController catController = TextEditingController();
     return Padding(
@@ -871,27 +961,25 @@ class _MainDashboardState extends State<MainDashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextField(controller: catController, decoration: const InputDecoration(labelText: 'Nama Kategori Baru', filled: true, fillColor: Colors.white)),
+          TextField(controller: catController, decoration: const InputDecoration(labelText: 'Nama Kategori Baru', border: OutlineInputBorder(), isDense: true, filled: true, fillColor: Colors.white)),
           const SizedBox(height: 12),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A)),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A), minimumSize: const Size(double.infinity, 48)),
             onPressed: () {
               if (catController.text.isNotEmpty) {
-                setState(() {
-                  AppDatabase.categories.add(catController.text);
-                });
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Kategori Berhasil Ditambahkan!')));
+                setState(() { AppDatabase.categories.add(catController.text); });
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Kategori Ditambahkan!')));
               }
             },
             child: const Text('Tambah Kategori', style: TextStyle(color: Colors.white)),
           ),
           const SizedBox(height: 16),
-          const Text('Daftar Kategori', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+          const Text('Daftar Kategori', style: TextStyle(fontWeight: FontWeight.bold)),
           Expanded(
             child: ListView.builder(
               itemCount: AppDatabase.categories.length,
               itemBuilder: (context, index) {
-                return Card(child: ListTile(title: Text(AppDatabase.categories[index])));
+                return Card(color: Colors.white, elevation: 0, shape: RoundedRectangleBorder(side: BorderSide(color: Colors.grey.shade200), borderRadius: BorderRadius.circular(12)), child: ListTile(title: Text(AppDatabase.categories[index])));
               },
             ),
           ),
@@ -900,85 +988,52 @@ class _MainDashboardState extends State<MainDashboard> {
     );
   }
 
+  // SETTING PRODUK (TAMBAH, HAPUS, FOTO PLACEHOLDER)
   Widget buildSettingProdukView() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      itemCount: AppDatabase.products.length,
-      itemBuilder: (context, index) {
-        var p = AppDatabase.products[index];
-        return Card(
-          child: ListTile(
-            title: Text(p['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('Stock ${p['stock']} • Kategori: ${p['category']} • Harga: Rp ${p['price']}'),
-            trailing: IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () { setState(() { AppDatabase.products.removeAt(index); }); },
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // LAPORAN TRANSAKSI ADMIN: DENGAN SEARCH & GENERATE OTP VOID
-  Widget buildAdminTransaksiView() {
-    TextEditingController otpController = TextEditingController();
-    var filteredTx = AppDatabase.transactions.where((t) {
-      return t['id'].toLowerCase().contains(searchQuery.toLowerCase()) ||
-          t['kasir'].toLowerCase().contains(searchQuery.toLowerCase());
-    }).toList();
-
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: TextField(
-            onChanged: (val) => setState(() => searchQuery = val),
-            decoration: InputDecoration(hintText: 'Cari No Transaksi / Kasir...', prefixIcon: const Icon(Icons.search), filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
-          ),
-        ),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          color: const Color(0xFF1E3A8A),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('OTP Aktif Void: ${AppDatabase.activeOtp}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),
-                onPressed: () {
-                  setState(() {
-                    int randomOtp = 100000 + DateTime.now().millisecond * 89;
-                    AppDatabase.activeOtp = randomOtp.toString();
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('OTP Void Baru Digenerate!')));
-                },
-                child: const Text('Generate OTP'),
-              ),
-            ],
+          padding: const EdgeInsets.all(16),
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1E3A8A),
+              minimumSize: const Size(double.infinity, 48),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+            ),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Buka form tambah produk & upload foto')));
+            },
+            icon: const Icon(Icons.add, color: Colors.white),
+            label: const Text('Tambah Produk Baru', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ),
         Expanded(
-          child: filteredTx.isEmpty ? const Center(child: Text('Tidak ada transaksi.', style: TextStyle(color: Colors.white))) :
-          ListView.builder(
-            itemCount: filteredTx.length,
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemCount: AppDatabase.products.length,
             itemBuilder: (context, index) {
-              var tx = filteredTx[index];
-              bool isVoid = tx['voided'] ?? false;
+              var p = AppDatabase.products[index];
               return Card(
+                color: Colors.white, elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
                 child: ListTile(
-                  title: Text('${tx['id']} - Kasir: ${tx['kasir']}', style: TextStyle(fontWeight: FontWeight.bold, decoration: isVoid ? TextDecoration.lineThrough : null)),
-                  subtitle: Text('Total: Rp ${tx['total']} • ${tx['date']} • ${isVoid ? "VOIDED" : "Sukses"}'),
-                  trailing: !isVoid ? ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  leading: Container(
+                    width: 50, height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300)
+                    ),
+                    child: const Icon(Icons.image, color: Colors.grey), // Placeholder Foto
+                  ),
+                  title: Text(p['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text('Kategori: ${p['category']} • Rp ${p['price']}'),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
                     onPressed: () {
-                      setState(() {
-                        tx['voided'] = true;
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaksi berhasil di-void!')));
+                      setState(() { AppDatabase.products.removeAt(index); });
                     },
-                    child: const Text('Void', style: TextStyle(color: Colors.white)),
-                  ) : const Text('VOID', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                  ),
                 ),
               );
             },
@@ -988,7 +1043,79 @@ class _MainDashboardState extends State<MainDashboard> {
     );
   }
 
-  // LAPORAN OMSET PER TANGGAL DI ADMIN
+  // LAPORAN ADMIN (CARI TRX & GENERATE OTP VOID KETIKA DIKLIK)
+  Widget buildAdminTransaksiView() {
+    var filteredTx = AppDatabase.transactions.where((t) => t['id'].toLowerCase().contains(searchQuery.toLowerCase())).toList();
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: TextField(
+            onChanged: (val) => setState(() => searchQuery = val),
+            decoration: InputDecoration(
+              hintText: 'Cari No Transaksi...', 
+              prefixIcon: const Icon(Icons.search), 
+              filled: true, fillColor: Colors.white, 
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
+            ),
+          ),
+        ),
+        Expanded(
+          child: filteredTx.isEmpty ? const Center(child: Text('Tidak ada transaksi.')) :
+          ListView.builder(
+            itemCount: filteredTx.length,
+            itemBuilder: (context, index) {
+              var tx = filteredTx[index];
+              bool isVoid = tx['voided'] ?? false;
+              return Card(
+                color: Colors.white, elevation: 0,
+                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
+                child: ListTile(
+                  title: Text(tx['id'], style: TextStyle(fontWeight: FontWeight.bold, decoration: isVoid ? TextDecoration.lineThrough : null, color: isVoid ? Colors.red : Colors.black87)),
+                  subtitle: Text('Kasir: ${tx['kasir']} • Rp ${tx['total']} • ${isVoid ? "VOIDED" : "Sukses"}'),
+                  onTap: () {
+                    if (!isVoid) {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Kelola Transaksi'),
+                          content: Text('Nomor Transaksi:\n${tx['id']}\n\nKlik tombol di bawah untuk membuat kode OTP Void.'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
+                              onPressed: () {
+                                setState(() {
+                                  AppDatabase.currentVoidOtp = (100000 + DateTime.now().millisecond * 89).toString();
+                                });
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('OTP Berhasil Dibuat: ${AppDatabase.currentVoidOtp}'),
+                                    duration: const Duration(seconds: 10),
+                                    action: SnackBarAction(label: 'Copy', textColor: Colors.white, onPressed: () {
+                                      Clipboard.setData(ClipboardData(text: AppDatabase.currentVoidOtp));
+                                    }),
+                                  )
+                                );
+                              },
+                              child: const Text('Generate OTP Void', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        )
+                      );
+                    }
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget buildAdminRekapView() {
     Map<String, double> dateOmset = {};
     for (var t in AppDatabase.transactions) {
@@ -997,18 +1124,13 @@ class _MainDashboardState extends State<MainDashboard> {
       dateOmset[date] = (dateOmset[date] ?? 0) + (t['total'] as double);
     }
 
-    if (dateOmset.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Center(child: Text('Belum ada data omset transaksi.', style: TextStyle(color: Colors.white))),
-      );
-    }
+    if (dateOmset.isEmpty) return const Center(child: Text('Belum ada data omset transaksi.'));
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: dateOmset.entries.map((entry) {
         return Card(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          color: Colors.white, elevation: 0, shape: RoundedRectangleBorder(side: BorderSide(color: Colors.grey.shade200), borderRadius: BorderRadius.circular(12)),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
