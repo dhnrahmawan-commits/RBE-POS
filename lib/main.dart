@@ -395,11 +395,10 @@ class _MainDashboardState extends State<MainDashboard> {
             
             return Padding(
               padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom, 
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20, 
                 left: 20, 
                 right: 20, 
-                top: 20, 
-                bottom: 20
+                top: 20
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min, 
@@ -476,9 +475,9 @@ class _MainDashboardState extends State<MainDashboard> {
                       Navigator.pop(context); 
                       processPaymentFinal(selectedMethod); 
                     },
-                    child: Text(
+                    child: const Text(
                       'Konfirmasi Pembayaran', 
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
                     ),
                   ),
                 ],
